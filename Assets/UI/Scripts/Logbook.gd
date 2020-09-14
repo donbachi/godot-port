@@ -6,10 +6,11 @@ export(int) var current_page setget set_current_page
 #export(String, MULTILINE) var body_text := "There is nothing written in your logbook yet!" setget set_body_text
 export(Array, Array, String, MULTILINE) var pages := [["This is a Book Title", "There is nothing written in your logbook yet!"]] setget set_pages
 
-onready var caption := $CenterContainer/TextureRect/MarginContainer/HBoxContainer/LeftPage/Caption
+onready var caption := $CenterContainer/TextureRect/MarginContainer/HBoxContainer/LeftPage/CaptionBlock/Caption
 onready var body := $CenterContainer/TextureRect/MarginContainer/HBoxContainer/LeftPage/Body
 
-onready var page_control := $CenterContainer/TextureRect/MarginContainer/HBoxContainer/LeftPage/PageControl
+#onready var page_control := $CenterContainer/TextureRect/MarginContainer/HBoxContainer/LeftPage/PageControl
+onready var page_control := find_node("PageControl")
 
 func _ready() -> void:
 	update_book()
@@ -24,7 +25,7 @@ func update_book() -> void:
 
 func update_text() -> void:
 	if not is_inside_tree(): yield(self, "ready")
-	
+
 	if pages.size() > 0:
 		caption.text = pages[current_page][0]
 		body.text = pages[current_page][1]
@@ -34,7 +35,7 @@ func update_text() -> void:
 
 func update_page_control() -> void:
 	if not is_inside_tree(): yield(self, "ready")
-	
+
 #	if pages.size() <= 1:
 #		page_control.get_node("PrevButton").disabled = true
 #		page_control.get_node("NextButton").disabled = true
@@ -66,7 +67,7 @@ func set_pages(new_pages: Array) -> void:
 	for page in pages:
 		if page.size() != 2:
 			page.resize(2)
-	
+
 	if not is_inside_tree(): return # when setter is invoked too early
 	update_book()
 

@@ -1,7 +1,11 @@
-tool
 extends Node
 
-enum ResourceTypes {
+enum WindowMode {
+	WINDOWED,
+	FULLSCREEN
+}
+
+enum ResourceType {
 	# Taken from fife version, started at 1 originally.
 	GOLD             =  0,
 	LAMB_WOOL        =  1,
@@ -106,18 +110,18 @@ enum ResourceTypes {
 	# 91-98 reserved for services
 }
 
-enum Factions {
+enum Faction {
 	NONE,
 	RED,
 	BLUE,
-	GREEN,
+	DARK_GREEN,
 	ORANGE,
 	PURPLE,
 	CYAN,
 	YELLOW,
 	PINK,
 	TEAL,
-	LEMON,
+	LIME_GREEN,
 	BORDEAUX,
 	WHITE,
 	GRAY,
@@ -240,14 +244,14 @@ const FACTIONS = [
 	"None",
 	"Red",
 	"Blue",
-	"Green",
+	"Dark Green",
 	"Orange",
 	"Purple",
 	"Cyan",
 	"Yellow",
 	"Pink",
 	"Teal",
-	"Lemon",
+	"Lime Green",
 	"Bordeaux",
 	"White",
 	"Gray",
@@ -296,8 +300,8 @@ const FACTION_COLOR_RED =\
 	preload("res://Assets/Player/FactionColor/FactionColorRed.tres")
 const FACTION_COLOR_BLUE =\
 	preload("res://Assets/Player/FactionColor/FactionColorBlue.tres")
-const FACTION_COLOR_GREEN =\
-	preload("res://Assets/Player/FactionColor/FactionColorGreen.tres")
+const FACTION_COLOR_DARK_GREEN =\
+	preload("res://Assets/Player/FactionColor/FactionColorDarkGreen.tres")
 const FACTION_COLOR_ORANGE =\
 	preload("res://Assets/Player/FactionColor/FactionColorOrange.tres")
 const FACTION_COLOR_PURPLE =\
@@ -310,8 +314,8 @@ const FACTION_COLOR_PINK =\
 	preload("res://Assets/Player/FactionColor/FactionColorPink.tres")
 const FACTION_COLOR_TEAL =\
 	preload("res://Assets/Player/FactionColor/FactionColorTeal.tres")
-const FACTION_COLOR_LEMON =\
-	preload("res://Assets/Player/FactionColor/FactionColorLemon.tres")
+const FACTION_COLOR_LIME_GREEN =\
+	preload("res://Assets/Player/FactionColor/FactionColorLimeGreen.tres")
 const FACTION_COLOR_BORDEAUX =\
 	preload("res://Assets/Player/FactionColor/FactionColorBordeaux.tres")
 const FACTION_COLOR_WHITE =\
@@ -325,14 +329,14 @@ const COLOR_MATERIAL = [
 	FACTION_COLOR_NONE,
 	FACTION_COLOR_RED,
 	FACTION_COLOR_BLUE,
-	FACTION_COLOR_GREEN,
+	FACTION_COLOR_DARK_GREEN,
 	FACTION_COLOR_ORANGE,
 	FACTION_COLOR_PURPLE,
 	FACTION_COLOR_CYAN,
 	FACTION_COLOR_YELLOW,
 	FACTION_COLOR_PINK,
 	FACTION_COLOR_TEAL,
-	FACTION_COLOR_LEMON,
+	FACTION_COLOR_LIME_GREEN,
 	FACTION_COLOR_BORDEAUX,
 	FACTION_COLOR_WHITE,
 	FACTION_COLOR_GRAY,
@@ -341,49 +345,59 @@ const COLOR_MATERIAL = [
 
 const MESSAGE_SCENE = preload("res://Assets/UI/Scenes/Message.tscn")
 
-const CONFIG_FILE = "user://unknown_horizon.ini"
+#const WINDOW_MODES = [
+#	WindowMode.WINDOWED,
+#	WindowMode.FULLSCREEN
+#]
+
+const WINDOW_MODES = {
+	WindowMode.WINDOWED: "Windowed",
+	WindowMode.FULLSCREEN: "Fullscreen"
+}
+
+# Screen resolution choices
+const SCREEN_RESOLUTIONS = [
+	"800x600",
+	"1024x768",
+	"1280x1024",
+	"1280x720",
+	"1280x800",
+	"1360x768",
+	"1366x768",
+	"1440x900",
+	"1600x900",
+	"1680x1050",
+	"1920x1200",
+	"1920x1080",
+	"2560x1080",
+	"2560x1440",
+	"3440x1440",
+	"3840x2160",
+]
+
+# Language choices
+#const LANGUAGES = {
+#	"Deutsch": "de",
+#	"English": "en",
+#	"Français": "fr",
+#}
+
+const LANGUAGES = [
+	"de",
+	"en",
+	"fr",
+]
+
+const LANGUAGES_READABLE = {
+	"de": "Deutsch",
+	"en": "English",
+	"fr": "Français",
+}
 
 #warning-ignore-all:unused_class_variable
 
-# Language choices
-const _languages = {
-	en = "English",
-	de = "Deutsch",
-	fr = "Français"
-}
-
-const _lang_array = [
-	"en",
-	"de",
-	"fr"
-]
-
-var _screen_res = [
-	"800 x 600",
-	"1024 x 768",
-	"1280 x 1024",
-	"1280 x 720",
-	"1280 x 800",
-	"1360 x 768",
-	"1366 x 768",
-	"1440 x 900",
-	"1600 x 900",
-	"1680 x 1050",
-	"1920 x 1200",
-	"1920 x 1080",
-	"2560 x 1080",
-	"2560 x 1440",
-	"3440 x 1440",
-	"3840 x 2160"
-]
-
-# System variables
-var language = "en"
-
-# -------
+# Game variables
 var game_type := "FreePlay"
-var player_name := "Unknown Traveller"
-var screen_res := "800*600"
 var faction := 1
 var map: PackedScene
 var ai_players := 0 # default should be 3 once AI is functional
@@ -395,45 +409,29 @@ var has_disasters := false
 var Game: Spatial = null
 var PlayerStart: MeshInstance = null
 
-#var specifications = {
-#
-#}
-
 var _warning := false # DEBUG
 
-func save_config():
-	var config = ConfigFile.new()
-	config.set_value("global", "player_name", player_name)
-	config.set_value("global", "language", language)
-	config.set_value("global", "screen_res", screen_res)
-	return config.save(CONFIG_FILE)
-
-func create_config_if_not_exists() -> ConfigFile:
-	var config = ConfigFile.new()
-	var err = config.load(CONFIG_FILE)
-	if err != OK:
-		var saved = save_config()
-		if saved != OK:
-			# this is very bad and should not be possible
-			print("The config could not be saved!")
-			get_tree().quit()
-	return config
-
 func _ready() -> void:
-	var config = create_config_if_not_exists()
-	var err = config.load(CONFIG_FILE)
-	if err != OK:
-		print("Could not load config. This is impossible!")
-		get_tree().quit()
-	player_name = config.get_value("global", "player_name", "Unknown Player")
-	language = config.get_value("global", "language", "en")
-	screen_res = config.get_value("global", "screen_res", "800*600")
+	Config.load_config() # initialize with stored settings if available
+
+	var window_mode = Config.window_mode
+	var screen_resolution = Config.screen_resolution
+
+	OS.window_fullscreen = window_mode
+	set_screen_resolution(screen_resolution)
+
 	pause_mode = Node.PAUSE_MODE_PROCESS
+
+func set_screen_resolution(screen_resolution: String) -> void:
+	var resolution = screen_resolution.split("x")
+	resolution = Vector2(int(resolution[0]), int(resolution[1]))
+	OS.set_window_size(resolution)
+	OS.center_window()
 
 func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
-	
+
 	# Only available during gameplay
 	if get_tree().get_root().get_node_or_null("World/WorldEnvironment") != null:
 		if event.is_action_pressed("time_speed_up"):
@@ -453,9 +451,15 @@ func _input(event: InputEvent) -> void:
 		if event.is_action_pressed("restart_scene"):
 			#warning-ignore:return_value_discarded
 			get_tree().reload_current_scene()
-	
+
 	if event.is_action_pressed("toggle_fullscreen"):
+		var window_mode = Config.window_mode
+
+		window_mode = (window_mode + 1) % WINDOW_MODES.size()
+		prints("window_mode:", window_mode)
 		OS.window_fullscreen = !OS.window_fullscreen
+
+		Config.window_mode = window_mode
 
 	if event.is_action_pressed("quit_game"):
 		get_tree().quit()
